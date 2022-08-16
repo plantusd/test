@@ -1,7 +1,7 @@
 apiVersion: skaffold/v2beta29
 kind: Config
 profiles:
-  - name: israel-qa
+  - name: test-assignment
     build:
       artifacts:
         - image: 576885615623.dkr.ecr.eu-central-1.amazonaws.com/test-assignment
