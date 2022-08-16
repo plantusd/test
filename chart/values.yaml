@@ -1,0 +1,48 @@
+labels:
+  app: test-assignment
+deployment:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+  replicaCount: 2
+  annotations: {}
+  images:
+    - image: 576885615623.dkr.ecr.eu-central-1.amazonaws.com/test-assignment
+      name: test-assignment
+      ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+      pullPolicy: IfNotPresent
+      readinessProbe:
+        httpGet:
+          port: 8080
+        initialDelaySeconds: 20
+        timeoutSeconds: 30
+        failureThreshold: 3
+      livenessProbe:
+        httpGet:
+          port: 8080
+        initialDelaySeconds: 60
+        timeoutSeconds: 30
+        failureThreshold: 3
+      resources:
+        limits:
+          memory: 60Mi
+        requests:
+          cpu: 75m
+          memory: 50Mi
+service:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+ingress:
+  annotations: {}
+  hosts:
+    - host: pmshop.kube.private
+      paths: /
+      port: 80

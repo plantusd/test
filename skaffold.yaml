@@ -1,0 +1,23 @@
+apiVersion: skaffold/v2beta29
+kind: Config
+profiles:
+  - name: israel-qa
+    build:
+      artifacts:
+        - image: 576885615623.dkr.ecr.eu-central-1.amazonaws.com/test-assignment
+          context: ./app
+          docker:
+            dockerfile: Dockerfile
+    deploy:
+      statusCheckDeadlineSeconds: 300
+      kubeContext: arn:aws:eks:eu-central-1:576885615623:cluster/education-eks
+      helm:
+        releases:
+          - name: test-assignment
+            chartPath: chart
+#            useHelmSecrets: true
+            setValueTemplates:
+              image:
+                tag: "{{.VERSION}}"
+            valuesFiles:
+              - chart/values.yaml

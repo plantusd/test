@@ -1,0 +1,25 @@
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: {{ .Values.labels.app }}
+  labels:
+    {{- range $key, $val := .Values.labels }}
+      {{ $key }}: {{ $val | quote }}
+      {{- end }}
+  {{- if .Values.cmannotations }}
+  annotations:
+    {{- range $key, $val := .Values.cmannotations }}
+      {{ $key }}: {{ $val | quote }}
+      {{- end }}
+  {{- end }}
+data:
+  {{- range $key, $val := .Values.configmap }}
+    {{ $key }}: {{ $val | quote }}
+    {{- end }}
+  {{- if .Values.configmapBinaryData }}
+binaryData:
+  {{- range $key, $val := .Values.configmapBinaryData }}
+    {{ $key }}: {{ $val | quote }}
+    {{- end }}
+  {{- end }}

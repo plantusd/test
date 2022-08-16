@@ -1,0 +1,23 @@
+---
+{{- if .Values.service }}
+kind: Service
+apiVersion: v1
+metadata:
+  name: {{ .Values.labels.app | lower }}
+  labels:
+    service: {{ .Values.labels.app | lower }}
+    {{- range $key, $val := .Values.labels }}
+    {{ $key }}: {{ $val | quote }}
+    {{- end }}
+spec:
+  selector:
+    app: {{ .Values.labels.app }}
+  type: {{ .Values.service.type }}
+  ports:
+  {{- range .Values.service.ports }}
+  - name: {{ .name | lower }}
+    protocol: {{ .protocol | upper }}
+    port: {{ .port }}
+    targetPort: {{ .targetPort }}
+  {{- end }}
+  {{- end }}

@@ -1,0 +1,231 @@
+{{- if .Values.deployment }}
+{{- $app := .Values.labels.app -}}
+{{- $tag := .Values.tag | default "default" -}}
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: {{ .Values.labels.app }}
+  labels:
+  {{- range $key, $val := .Values.labels }}
+    {{ $key }}: "{{ $val }}"
+  {{- end }}
+spec:
+  {{- if hasKey .Values.deployment "replicaCount" }}
+  replicas: {{ .Values.deployment.replicaCount }}
+  {{- end }}
+  {{- if .Values.deployment.strategy }}
+  strategy: {{- toYaml .Values.deployment.strategy | nindent 4 }}
+  {{- end }}
+  selector:
+    matchLabels:
+      app: {{ $app | quote }}
+  template:
+    metadata:
+      name: {{ $app | quote }}
+      annotations:
+        {{- if .Values.redeployOnConfigChange }}
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- end }}
+      labels:
+      {{- range $key, $val := .Values.labels }}
+        {{ $key }}: "{{ $val }}"
+      {{- end }}
+    spec:
+      shareProcessNamespace: {{ .Values.shareProcessNamespace | default false }}
+      enableServiceLinks: {{ .Values.deployment.servicelinks | default true }}
+        {{- if .Values.deployment.hostAliases }}
+      hostAliases: {{- toYaml .Values.deployment.hostAliases | nindent 8 }}
+        {{- end }}
+        {{- if .Values.deployment.initContainers }}
+      initContainers:
+        {{- range .Values.deployment.initContainers }}
+        - name: {{ .name }}
+{{/*          image: "{{ .image }}:{{ .tag | default $tag }}"*/}}
+          image: 576885615623.dkr.ecr.eu-central-1.amazonaws.com/test-assignment:944a9ab-dirty
+          {{- if .imagePullPolicy }}
+          imagePullPolicy: {{ .imagePullPolicy }}
+          {{- end }}
+          {{- if .command }}
+          command: {{ .command }}
+          {{- end }}
+          {{- if .args }}
+          args:
+  {{ toYaml .args | indent 10 }}
+          {{- end }}
+          {{- if .env }}
+          env:
+          {{- range $key, $value := .env }}
+            - name: {{ $key | quote }}
+              value: {{ $value | quote }}
+          {{- end }}
+          {{- end }}
+          envFrom:
+            - configMapRef:
+                name: {{ $app | quote }}
+          {{- if .volumeMounts }}
+          volumeMounts:
+          {{- range .volumeMounts }}
+            - name: {{ .name }}
+              mountPath: {{ .mountPath }}
+          {{- if .subPath }}
+              subPath: {{ .subPath }}
+          {{- end }}
+          {{- end }}
+          {{- end }}
+        {{- end }}
+        {{- end }}
+      containers:
+        {{- range .Values.deployment.images }}
+        - name: {{ .name | default $app | quote }}
+          image: 576885615623.dkr.ecr.eu-central-1.amazonaws.com/test-assignment:944a9ab-dirty
+          {{- if .lifecycleHooks }}
+          lifecycle: {{- toYaml .lifecycleHooks | nindent 10 }}
+          {{- end }}
+          {{- if .command }}
+          command: {{ .command }}
+          {{- end }}
+          {{- if .args }}
+          args:
+          {{- range .args }}
+            - {{ . | quote }}
+          {{- end }}
+          {{- end }}
+          imagePullPolicy: {{ .pullPolicy  | default "IfNotPresent" }}
+          resources:
+          {{- if .resources }}
+{{ toYaml .resources | indent 12 }}
+          {{- else }}
+            limits:
+              memory: 256Mi
+            requests:
+              cpu: 200m
+              memory: 256Mi
+          {{- end }}
+          {{- if .livenessProbe }}
+          livenessProbe:
+{{ toYaml .livenessProbe | indent 12 }}
+          {{- end }}
+          {{- if .startupProbe }}
+          startupProbe:
+{{ toYaml .startupProbe | indent 12 }}
+          {{- end }}
+          {{- if .readinessProbe }}
+          readinessProbe:
+{{ toYaml .readinessProbe | indent 12 }}
+          {{- end }}
+          {{- if .ports }}
+          ports:
+          {{- range .ports }}
+            - name: {{ .name | lower }}
+              protocol: {{ .protocol }}
+              containerPort: {{ .containerPort }}
+          {{- end }}
+          {{- end }}
+          {{- if or (.env) ($.Values.secrets) ($.Values.fieldPath) (.configMapKeyRef) ($.Values.configMapKeyRef) }}
+          env:
+          {{- if .env }}
+          {{- range $key, $value := .env }}
+            - name: {{ $key | quote }}
+              value: {{ $value | quote }}
+          {{- end }}
+          {{- end }}
+          {{- if $.Values.secrets }}
+          {{- range $key, $val := $.Values.secrets.opaque }}
+            - name: {{ $key | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.labels.app }}-opaque
+                  key: {{ $key | quote }}
+          {{- end }}
+          {{- end }}
+          {{- if $.Values.fieldPath }}
+          {{- range $key, $val := $.Values.fieldPath }}
+            - name: {{ $key | quote }}
+              valueFrom:
+                fieldRef:
+                  fieldPath: {{ $val | quote }}
+          {{- end }}
+          {{- end }}
+          {{- if .configMapKeyRef }}
+          {{- range .configMapKeyRef }}
+            - name: {{ .name }}
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .cmname | default $.Values.labels.app }}
+                  key: {{ .key }}
+          {{- end }}
+          {{- end }}
+          {{- if $.Values.configMapKeyRef }}
+          {{- range $.Values.configMapKeyRef }}
+            - name: {{ .name }}
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .cmname | default $.Values.labels.app }}
+                  key: {{ .key }}
+          {{- end }}
+          {{- end }}
+          {{- end }}
+          envFrom:
+            - configMapRef:
+                name: {{ $app | quote }}
+          {{- if .secretEnvRef }}
+            {{- range .secretEnvRef }}
+            - secretRef:
+                name: {{ . }}
+            {{- end }}
+          {{- end }}
+          {{- if $.Values.secretEnvRef }}
+            {{- range $.Values.secretEnvRef }}
+            - secretRef:
+                name: {{ . }}
+            {{- end }}
+          {{- end }}
+          {{- if .volumeMounts }}
+          volumeMounts:
+          {{- range .volumeMounts }}
+            - name: {{ .name }}
+              mountPath: {{ .mountPath }}
+          {{- if .subPath }}
+              subPath: {{ .subPath }}
+          {{- end }}
+          {{- end }}
+          {{- end }}
+          {{- with .securityContext }}
+          securityContext:
+{{ toYaml . | indent 10 }}
+          {{- end }}
+        {{- end }}
+        {{- if .Values.deployment.pullSecret }}
+      imagePullSecrets:
+        - name: {{ .Values.deployment.pullSecret }}
+        {{- end }}
+        {{- if .Values.deployment.serviceAccountName }}
+      serviceAccountName: {{ .Values.deployment.serviceAccountName }}
+        {{- end }}
+        {{- if .Values.deployment.hostname }}
+      hostname: {{ .Values.deployment.hostname }}
+        {{- end }}
+        {{- if .Values.affinity }}
+        {{- with .Values.affinity }}
+      affinity:
+{{ toYaml . | indent 8 }}
+        {{- end }}
+        {{- end }}
+        {{- if .Values.deployment.terminationGracePeriodSeconds }}
+      terminationGracePeriodSeconds: {{ .Values.deployment.terminationGracePeriodSeconds }}
+        {{- end }}
+        {{- if .Values.tolerations }}
+        {{- with .Values.tolerations }}
+      tolerations:
+{{ toYaml . | indent 6 }}
+        {{- end }}
+        {{- end }}
+        {{- with .Values.deployment.volumes }}
+      volumes:
+{{ toYaml . | indent 6 }}
+        {{- end }}
+        {{- with .Values.deployment.securityContext }}
+      securityContext:
+{{ toYaml . | indent 8 }}
+        {{- end }}
+{{- end }}
